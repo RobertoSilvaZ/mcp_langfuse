@@ -30,6 +30,19 @@ async def query_observations(params: dict) -> dict:
         params.pop("cursor", None)
     async with httpx.AsyncClient(auth=(PUBLIC_KEY, SECRET_KEY), timeout=30) as client:
         response = await client.get(f"{HOST}{OBS_PATH}", params=params)
+        if response.status_code == 404:
+            endpoint = f"{HOST}{OBS_PATH}"
+            if API_VERSION == "v2":
+                raise ValueError(
+                    f"Langfuse endpoint not found: {endpoint}. "
+                    "Observations API v2 requires Langfuse v4+. "
+                    "If using self-hosted Langfuse v3, set LANGFUSE_API_VERSION=v1 "
+                    "in .env and recreate the container. Otherwise verify LANGFUSE_HOST."
+                )
+            raise ValueError(
+                f"Langfuse endpoint not found: {endpoint}. "
+                "Verify LANGFUSE_HOST and reverse-proxy routing."
+            )
         response.raise_for_status()
         return response.json()
 
