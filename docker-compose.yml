@@ -1,0 +1,13 @@
+services:
+  langfuse-mcp:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://host.docker.internal:3000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?Set LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?Set LANGFUSE_SECRET_KEY}
+      LANGFUSE_API_VERSION: ${LANGFUSE_API_VERSION:-v2}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
