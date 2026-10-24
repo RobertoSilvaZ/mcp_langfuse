@@ -8,10 +8,25 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from mcp.server import MCPServer
+from mcp.server.auth.settings import AuthSettings
+from pydantic import AnyHttpUrl
+from auth0_verifier import Auth0TokenVerifier, ISSUER
 from code_reader import (list_project_files as _list_files, read_source_file as _read_file,
                          search_in_code as _search_code, get_project_structure as _structure)
 
-mcp = MCPServer("Langfuse MCP")
+PUBLIC_URL = os.environ["MCP_PUBLIC_URL"].rstrip("/")
+if not PUBLIC_URL.startswith("https://"):
+    raise ValueError("MCP_PUBLIC_URL must be https://...")
+mcp = MCPServer(
+    "Langfuse MCP",
+    token_verifier=Auth0TokenVerifier(),
+    auth=AuthSettings(
+        issuer_url=AnyHttpUrl(ISSUER),
+        resource_server_url=AnyHttpUrl(PUBLIC_URL),
+        required_scopes=["mcp:read"],
+        validate_token_resource=False,  # Auth0 uses its own API audience, checked in verifier.
+    ),
+)
 HOST = os.environ["LANGFUSE_HOST"].rstrip("/")
 PUBLIC_KEY = os.environ["LANGFUSE_PUBLIC_KEY"]
 SECRET_KEY = os.environ["LANGFUSE_SECRET_KEY"]
