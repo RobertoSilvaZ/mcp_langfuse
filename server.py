@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from mcp.server import MCPServer
+from code_reader import (list_project_files as _list_files, read_source_file as _read_file,
+                         search_in_code as _search_code, get_project_structure as _structure)
 
 mcp = MCPServer("Langfuse MCP")
 HOST = os.environ["LANGFUSE_HOST"].rstrip("/")
@@ -94,6 +96,30 @@ async def get_trace_observations(trace_id: str, hours: int = 168, limit: int = 1
     if cursor and API_VERSION == "v2":
         params["cursor"] = cursor
     return await query_observations(params)
+
+
+@mcp.tool()
+def list_project_files(limit: int = 200) -> dict:
+    """List permitted files in the mounted read-only source directory."""
+    return _list_files(limit)
+
+
+@mcp.tool()
+def read_source_file(path: str, start_line: int = 1, max_lines: int = 200) -> dict:
+    """Read numbered source lines from a permitted file."""
+    return _read_file(path, start_line, max_lines)
+
+
+@mcp.tool()
+def search_in_code(query: str, limit: int = 30) -> dict:
+    """Search permitted code and Markdown files for a literal string."""
+    return _search_code(query, limit)
+
+
+@mcp.tool()
+def get_project_structure(limit: int = 200) -> dict:
+    """Display source-file structure of the mounted project."""
+    return _structure(limit)
 
 
 if __name__ == "__main__":
