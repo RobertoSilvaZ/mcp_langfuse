@@ -25,6 +25,49 @@ To stop both services: `docker compose down`.
 - `NGROK_DOMAIN`: reserved ngrok domain, **without** protocol or path.
 - `NGROK_AUTHTOKEN`: ngrok account authtoken; never commit it.
 
+## Auth0 OAuth (branch `feat/auth0-oauth-mcp`)
+
+This branch **requires OAuth** for all Streamable HTTP MCP calls, including Langfuse observations and source-reader tools. Requests without a valid bearer token receive HTTP 401.
+
+### Auth0 setup (one-time)
+
+1. Create a free [Auth0 tenant](https://manage.auth0.com/). Note its domain, such as `example.us.auth0.com`.
+2. Create an **API / Resource Server** with identifier matching your public MCP endpoint, e.g. `https://resolutive-keegan-humbler.ngrok-free.dev/mcp`. Set signing algorithm to **RS256**. Define permission/scope `mcp:read`. Ensure your user-facing OAuth application can request that scope; enable API RBAC and *Add Permissions in the Access Token* where appropriate.
+3. Enable the **Resource Parameter Compatibility Profile** in Auth0 tenant advanced settings, so OAuth clients using RFC 8707's `resource` parameter can request tokens for this API. Without this, MCP clients might receive the wrong audience. See [Auth0 guidance](https://support.auth0.com/center/s/article/mcp-audience-error-with-auth0).
+4. Configure a suitable **public OAuth client** supporting Authorization Code with PKCE and ChatGPT's supported client onboarding approach (pre-registered OAuth client / DCR / CIMD). Auth0-specific client registration and callback URL requirements need to be configured in Auth0, not in Docker. **The JWT verifier alone does not implement the login or client registration.** Confirm which registration method your ChatGPT workspace offers before trying to log in.
+5. Create or choose an Auth0 user. Copy their Auth0 `user_id` (e.g. `auth0|abc123`) into the allowlist. This is the JWT `sub`, **not their email address**.
+
+### Local configuration
+
+Add to `.env`:
+
+```dotenv
+AUTH0_DOMAIN=example.us.auth0.com
+AUTH0_AUDIENCE=https://resolutive-keegan-humbler.ngrok-free.dev/mcp
+AUTH0_ALLOWED_SUBJECTS=auth0|your-auth0-user-id
+```
+
+The public MCP resource URL is derived from `NGROK_DOMAIN`. Use the **same value** as the Auth0 API identifier for `AUTH0_AUDIENCE`. Keep the ngrok domain and Auth0 audience stable. Start with:
+
+```powershell
+docker compose up -d --build
+docker compose logs -f langfuse-mcp
+```
+
+### Validate protection
+
+Without a token:
+
+```powershell
+curl.exe -i https://resolutive-keegan-humbler.ngrok-free.dev/mcp
+```
+
+Expected: **401 Unauthorized** with a `WWW-Authenticate` header. The MCP SDK publishes protected-resource discovery metadata at `/.well-known/oauth-protected-resource/mcp`. The tool calls are blocked at the HTTP layer.
+
+With Auth0 configured in your ChatGPT client, authenticate and run `get_recent_observations` or `list_project_files`. A successful login requires correct Auth0 application/client registration and callbacks; this repository only implements the resource-server half.
+
+Security: the MCP validates RS256 signatures against Auth0 JWKS, exact issuer/audience, expiration, `mcp:read` permission and the explicit subject allowlist. Do not disable protection for convenience, and never commit secrets to Git.
+
 ## Connect to ChatGPT
 
 After `docker compose up -d --build` is running and ngrok has started:
