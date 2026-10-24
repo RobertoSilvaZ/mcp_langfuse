@@ -11,6 +11,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate Python syntax
-        run: python -m py_compile server.py
+        run: python -m py_compile server.py code_reader.py test_code_reader.py
+      - name: Run code reader tests
+        run: python -m unittest -v test_code_reader
       - name: Build container
         run: docker build -t langfuse-mcp:test .

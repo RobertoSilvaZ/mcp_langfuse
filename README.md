@@ -42,6 +42,30 @@ If the plugin reports a connection error, verify the ngrok container is running 
 
 **Security:** A successful connection is not proof the public endpoint is safe. This MCP currently lacks inbound authentication and exposes full trace I/O. Restrict to test data until compatible authentication/access controls are added. Never paste ngrok or Langfuse credentials into ChatGPT.
 
+## Read local source code (optional project mount)
+
+The Code Reader adds four read-only tools: `list_project_files`, `read_source_file`, `search_in_code`, and `get_project_structure`.
+
+Set **SOURCE_CODE_PATH** in your local `.env` to the absolute directory of the specific project to inspect, for example:
+
+```dotenv
+SOURCE_CODE_PATH=D:/collectiviq.ai/my-backend
+```
+
+Use forward slashes on Windows. The source folder must exist. The mount uses `:ro` semantics and appears as `/workspace` in the MCP container. Files you edit are read immediately without rebuilding the image; the first mount change requires recreating the container:
+
+```powershell
+git switch feat/read-only-code-browser
+docker compose up -d --build
+docker compose exec langfuse-mcp ls /workspace
+```
+
+Open MCP Inspector or refresh the ChatGPT MCP plugin tool list, then ask: "List the project files" or "Read the first 100 lines of main.py". Paths given to the tools are **relative** to the mounted source directory.
+
+Restrictions: supported source extensions only; hidden files and directories, `.env*`, `.git`, `node_modules`, typical build folders, and credentials directories are excluded. Path traversal, absolute paths, and symbolic links are rejected. Individual files are limited to 128 KiB; listings scan at most 1000 candidate files; responses and searches are bounded. Treat this as a defense-in-depth filter, **not** a substitute for strong MCP authentication or a carefully scoped mount. Never mount an entire home directory or a folder containing secrets.
+
+**Critical:** ngrok currently exposes this MCP publicly without inbound authorization. Do not enable source browsing with proprietary code or sensitive documents until an authentication/access-control layer compatible with your MCP client has been added.
+
 ### MCP Tools
 
 - `get_recent_observations(hours, limit, cursor)` — observations with complete input/output.
